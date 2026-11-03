@@ -1,27 +1,35 @@
-# Ballot Compass
+# Ballot Compass | AI research upgrade
 
-A shareable, mobile-friendly US election and ballot explorer. Enter a residential street address, then view available upcoming elections, candidate races and ballot measures.
+This version upgrades the original Ballot Compass without changing its design. It keeps Google's Civic Information API for address-specific election identification and adds **optional** OpenAI-powered web research for election information and for individual contest details.
 
-## Publish with Netlify
+## Update your existing public website
 
-1. Create a Google Cloud project. Enable **Google Civic Information API** and create an API key. See https://developers.google.com/civic-information/docs/using_api
-2. Upload this folder to a GitHub repository (Netlify's Git-based deployment is recommended for serverless functions).
-3. In Netlify, choose **Add new project → Import an existing project**, connect the GitHub repository, and deploy. The included `netlify.toml` configures the function and URL route.
-4. Go to **Site configuration → Environment variables**, add `GOOGLE_CIVIC_API_KEY` with the Google key as its value. Redeploy after adding it.
-5. Share the `https://your-site.netlify.app` address.
+1. Download and unzip `ballot-compass-ai.zip`.
+2. In the **existing GitHub repository**, replace `index.html` and `netlify.toml` with the versions from this package.
+3. Add `netlify/functions/research.mjs`. Retain `netlify/functions/lookup.mjs` (included here too). The exact folder structure matters.
+4. Commit the updates. Netlify should deploy automatically from GitHub.
+5. In Netlify, go to **Project configuration → Environment variables**, add `OPENAI_API_KEY` with your OpenAI API key, scope **Functions**, deploy context **Production**. Keep **Contains secret values** enabled. This is separate from ChatGPT Plus billing.
+6. Keep the existing `GOOGLE_CIVIC_API_KEY` environment variable. The two APIs have different jobs.
+7. **Trigger a new Netlify deploy** after saving environment variables. Open your site, enter a complete street address, then select **Research this election** or open a contest and select **Research this item**.
 
-**Important:** Simply dragging and dropping the files to Netlify's static deploy area will not build the serverless function. Use a repository deployment (or the Netlify CLI with function support).
+If your Netlify environment asks for different deploy-context values when secrets are enabled, add the key to **Production**. Never paste API keys into HTML, GitHub, or chat.
 
-## Data and limitations
+API key creation: https://platform.openai.com/api-keys
+API billing: https://platform.openai.com/settings/organization/billing/overview
+Responses API web search documentation: https://developers.openai.com/api/docs/guides/tools-web-search
 
-- Uses Google's `elections` and `voterinfo` endpoints. Availability varies by jurisdiction, election and time. Local or special elections and down-ballot details may be missing. This is NOT a guaranteed complete official sample ballot.
-- Searches for the next available election; when no ballot details are available, the app displays a warning rather than inventing candidates or ballot questions.
-- Candidate background information is limited to the information and links Google provides. For full candidate biographies, endorsements, policies, arguments for and against a measure, and wider local coverage, connect a licensed comprehensive data provider such as BallotReady or Democracy Works.
-- Addresses are POSTed to the Netlify function and then forwarded to Google's API. This project does not save addresses. Your hosting platform and Google may process logs under their respective policies. Consider adding a privacy policy before publicly launching.
-- Do not expose a secret API key in client-side code. The function reads the key on the server. Restrict the key to this API and use Google Cloud quota/budget controls where possible. This is a proof-of-concept architecture; add rate limiting / bot defense for a widely shared public service.
-- The date is based on the hosting server's current UTC day, so elections on the boundary of UTC dates may need timezone-specific treatment before a nationwide production launch.
-- Use official election authorities to confirm deadlines, eligibility, and actual ballots: https://www.usa.gov/state-election-office
+## What it can and cannot do
 
-## Run locally
+- **Verified ballot coverage:** Google voterinfo may list a date but have no contests, and it may omit local contests. The app never treats a missing contest as evidence there is no contest.
+- **AI election research:** The new button performs web searches using OpenAI and displays possible nearby contests and source links. These are explicitly **research leads**, not a complete or verified ballot for a given street address or precinct. The app cannot guarantee the precise ballot using AI alone. It avoids asserting the user's congressional or local legislative districts without official evidence.
+- **AI contest research:** Opening a Google-returned item lets the user research publicly documented candidates, positions, and measures, with citations. AI summaries can be wrong or incomplete and must be verified with election authorities. Do not use these summaries as official ballot instructions.
+- **Privacy:** Street address goes to Google through a Netlify Function; only city, state, election name, election date, and selected contest names are sent to OpenAI. This project does not intentionally store addresses, but infrastructure providers may retain access logs. Add your own privacy disclosure before marketing the site.
+- **Citations:** The UI shows the source URLs returned as web search citations. Research findings may also display source links suggested by the model. Citations support further verification but do not prove an entry is on someone's personal ballot.
+- **Public access and costs:** Every AI research click incurs OpenAI API charges (model and web search). The default model is `gpt-4.1-mini`; you can configure `OPENAI_MODEL` in Netlify to use a different web-search-capable model. Set billing limits and add Netlify bot protection / IP rate limits before promoting the site. This prototype has no persistent database, request quota, or shared caching.
+- **Function runtime:** AI research may take tens of seconds; some Netlify plans have execution-duration limits. If calls time out, consider moving research to an asynchronous job architecture or using a faster model. The function currently times out a research request after 47 seconds.
 
-Install Netlify CLI, then run `netlify dev` in this directory after setting `GOOGLE_CIVIC_API_KEY` via a local `.env` file or Netlify environment configuration. Do not commit keys.
+## Check your deployment
+
+Open `https://YOUR-SITE.netlify.app/.netlify/functions/research` in a browser. It should say `{"error":"Use POST."}`. If you see HTML or a 404, the function is not deployed correctly.
+
+Visit https://www.usa.gov/state-election-office to cross-check official election information.
